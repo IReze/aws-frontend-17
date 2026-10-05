@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solucion Distribuida AWS - Kevin Martinez</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center p-4">
+
+  <div class="max-w-md w-full bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700">
+    <div class="text-center mb-6">
+      <h1 class="text-2xl font-bold text-blue-400">Portal Seguro AWS</h1>
+      <p class="text-xs text-gray-400 mt-1">Arquitectura Zero Trust - Prefijo 17</p>
+    </div>
+
+    <div id="login-section">
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1 text-gray-300">Usuario</label>
+        <input id="user" type="text" placeholder="kevin" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500 text-white">
+      </div>
+      <div class="mb-5">
+        <label class="block text-sm font-medium mb-1 text-gray-300">Contrasena</label>
+        <input id="pass" type="password" placeholder="••••••••" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500 text-white">
+      </div>
+      <button onclick="login()" class="w-full bg-blue-600 hover:bg-blue-700 transition duration-200 p-2.5 rounded-lg font-semibold shadow">
+        Iniciar Sesion
+      </button>
+      <div id="error-msg" class="text-red-400 text-sm mt-4 p-2 bg-red-900/30 border border-red-800 rounded hidden text-center"></div>
+    </div>
+
+    <div id="dashboard-section" class="hidden">
+      <div class="flex items-center space-x-2 text-green-400 mb-4">
+        <h2 class="text-xl font-bold">Sesion Autorizada</h2>
+      </div>
+      
+      <p class="text-xs text-gray-400 mb-2 font-mono uppercase tracking-wider">Payload JWT / Datos Backend:</p>
+      <pre id="dash-info" class="text-xs text-green-300 bg-gray-900 p-3 rounded-lg border border-gray-700 overflow-x-auto mb-6"></pre>
+      
+      <button onclick="logout()" class="w-full bg-red-600 hover:bg-red-700 transition duration-200 p-2.5 rounded-lg font-semibold shadow">
+        Cerrar Sesion
+      </button>
+    </div>
+  </div>
+
+  <script>
+    async function login() {
+      const username = document.getElementById('user').value.trim();
+      const password = document.getElementById('pass').value.trim();
+      const errBox = document.getElementById('error-msg');
+      errBox.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          sessionStorage.setItem('token', data.token);
+          loadDashboard();
+        } else {
+          errBox.innerText = data.error || 'Error al autenticar';
+          errBox.classList.remove('hidden');
+        }
+      } catch (err) {
+        errBox.innerText = 'No hay respuesta del backend';
+        errBox.classList.remove('hidden');
+      }
+    }
+
+    async function loadDashboard() {
+      const token = sessionStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const res = await fetch('/api/dashboard/data', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('login-section').classList.add('hidden');
+          document.getElementById('dashboard-section').classList.remove('hidden');
+          document.getElementById('dash-info').innerText = JSON.stringify(data, null, 2);
+        } else {
+          logout();
+        }
+      } catch (err) {
+        logout();
+      }
+    }
+
+    function logout() {
+      sessionStorage.removeItem('token');
+      document.getElementById('login-section').classList.remove('hidden');
+      document.getElementById('dashboard-section').classList.add('hidden');
+      document.getElementById('user').value = '';
+      document.getElementById('pass').value = '';
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      if (sessionStorage.getItem('token')) {
+        loadDashboard();
+      }
+    });
+  </script>
+</body>
+</html>
